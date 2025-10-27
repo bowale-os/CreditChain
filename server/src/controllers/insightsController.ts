@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getInsights, addInsight, upvoteInsight } from "../services/insightsServices";
 
-// GET /api/insight
+// GET /api/insights
 export const fetchInsights = async (req: Request, res: Response) => {
   try {
     const insights = await getInsights();
@@ -12,12 +12,12 @@ export const fetchInsights = async (req: Request, res: Response) => {
   }
 };
 
-// POST /api/insight
+// POST /api/insights
 export const createInsight = async (req: Request, res: Response) => {
   try {
     const { tip, body, category, hashedId } = req.body;
-    if (!tip || !body || !category || !hashedId) {
-      return res.status(400).json({ error: "tip, body, category, and hashedId are required" });
+    if (!tip || !category || !hashedId) {
+      return res.status(400).json({ error: "tip, category, and hashedId are required" });
     }
 
     // Add insight to DB and attempt blockchain sync
@@ -33,7 +33,7 @@ export const createInsight = async (req: Request, res: Response) => {
   }
 };
 
-// POST /api/insight/:id/upvote
+// POST /api/insights/:id/upvote
 export const upvote = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

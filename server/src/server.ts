@@ -7,7 +7,7 @@ const app = express();
 app.use(express.json());
 
 // Mount the router at /api/insight
-app.use("/api/insight", insightRoutes);
+app.use("/api/insights", insightRoutes);
 
 // Root route (optional)
 app.get("/", (req, res) => res.send("Welcome to CreditChain API!"));

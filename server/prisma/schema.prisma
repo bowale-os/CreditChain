@@ -1,31 +1,21 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// server/prisma/schema.prisma
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+    provider = "prisma-client-js"
 }
-
-datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-}
-
 
 model Insight {
-  id             String   @id @default(cuid())
-  tip            String
-  body           String?        // Optional narration
-  category       String
-  hashedId       String         // Matches contract hashedId
-  timestamp      DateTime
-  upvotes        Int            @default(0)
-  
-  
-  //Blockchain fields
-  onChainIndex   Int?           // Index of the insight on-chain
-  createdAt      DateTime       @default(now())
+    id           String    @id @default(cuid())
+    tip          String
+    body         String?   // Optional narration
+    category     String
+    hashedId     String    // Matches contract hashedId
+    createdAt    DateTime  @default(now())
+    upvotes      Int       @default(0)
+    onChainIndex Int?      // Index of the insight on-chain
+    synced       Boolean   @default(false)
 }

@@ -1,5 +1,6 @@
 // src/services/insightServices.ts
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
+import Web3 from 'web3';
 import { contract, account } from "../web3";
 
 const prisma = new PrismaClient();
@@ -7,13 +8,13 @@ const prisma = new PrismaClient();
 export interface Insight {
   id?: string;             // local DB id
   tip: string;
-  body: string;
+  body: string | null;
   category: string;
   hashedId: string;
-  timestamp: number;
+  createdAt: Date;
   upvotes: number;
   synced?: boolean;        // whether it has been synced to blockchain
-  onChainId?: number;      // index on blockchain
+  onChainIndex?: number;      // index on blockchain
 }
 
 /**
@@ -22,7 +23,7 @@ export interface Insight {
  */
 export const getInsights = async (): Promise<Insight[]> => {
   return await prisma.insight.findMany({
-    orderBy: { timestamp: "desc" },
+    orderBy: { createdAt: "desc" },
   });
 };
 
@@ -31,13 +32,21 @@ export const getInsights = async (): Promise<Insight[]> => {
  */
 export const addInsight = async (
   tip: string,
-  body: string,
+  body: string | undefined,
   category: string,
   hashedId: string
 ) => {
   // Step 1: Save locally
   const localInsight = await prisma.insight.create({
-    data: { tip, body, category, hashedId, timestamp: Date.now(), upvotes: 0, synced: false },
+    data: { 
+      tip, 
+      body, 
+      category, 
+      hashedId, 
+      createdAt: new Date(), 
+      upvotes: 0, 
+      synced: false 
+    },
   });
 
   // Step 2: Try to sync to blockchain
