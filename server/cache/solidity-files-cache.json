@@ -1,0 +1,77 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "C:\\Users\\danie\\OneDrive\\Desktop\\creditchain\\server\\contracts\\CreditChain.sol": {
+      "lastModificationDate": 1761517990747,
+      "contentHash": "350fe4044a2f3cf471fdf67452b6d694",
+      "sourceName": "contracts/CreditChain.sol",
+      "solcConfig": {
+        "version": "0.8.28",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "CreditChain"
+      ]
+    },
+    "C:\\Users\\danie\\OneDrive\\Desktop\\creditchain\\server\\contracts\\Storage.sol": {
+      "lastModificationDate": 1761458057570,
+      "contentHash": "f79bb1661450d7848dfc0f283369eebd",
+      "sourceName": "contracts/Storage.sol",
+      "solcConfig": {
+        "version": "0.8.28",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.28"
+      ],
+      "artifacts": [
+        "Storage"
+      ]
+    }
+  }
+}

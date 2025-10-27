@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    /* Basic Options */
+    "target": "esnext",                      // Modern JavaScript output
+    "module": "nodenext",                    // ES modules for Node
+    "moduleResolution": "nodenext",
+    "outDir": "./dist",                       // compiled JS output
+    "rootDir": "./src",                        // source files root
+    "strict": true,                            // enable all strict type-checking options
+
+    /* Allow JSON imports */
+    "resolveJsonModule": true,                 // <-- allows importing .json files
+    "esModuleInterop": true,                   // <-- allows default imports from CommonJS
+
+    /* Type Checking Options */
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+
+    /* Source Maps & Declarations */
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    /* Module & JSX Support */
+    "jsx": "react-jsx",                         // only relevant if frontend code shares config
+
+    /* Misc Options */
+    "skipLibCheck": true,                       // speeds up compilation
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
