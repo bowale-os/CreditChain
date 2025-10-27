@@ -5,6 +5,6 @@ const router = Router();
 
 router.get("/", fetchInsights);           // GET /api/insight
 router.post("/", createInsight);          // POST /api/insight
-router.post("/:index/upvote", upvote);    // POST /api/insight/:index/upvote
+router.post("/:id/upvote", upvote);   // (prisma id)  POST /api/insight/:index/upvote
 
 export default router;

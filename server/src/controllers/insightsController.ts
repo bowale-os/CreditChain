@@ -15,28 +15,34 @@ export const fetchInsights = async (req: Request, res: Response) => {
 // POST /api/insight
 export const createInsight = async (req: Request, res: Response) => {
   try {
-    const { tip, category, hashedId } = req.body;
-    if (!tip || !category || !hashedId) {
-      return res.status(400).json({ error: "tip, category, and hashedId are required" });
+    const { tip, body, category, hashedId } = req.body;
+    if (!tip || !body || !category || !hashedId) {
+      return res.status(400).json({ error: "tip, body, category, and hashedId are required" });
     }
 
-    const tx = await addInsight(tip, category, hashedId);
-    res.status(201).json({ message: "Insight added", txHash: tx.transactionHash });
+    // Add insight to DB and attempt blockchain sync
+    const insight = await addInsight(tip, body, category, hashedId);
+
+    res.status(201).json({
+      message: "Insight added",
+      insight,  // return DB record with optional onChainId & synced
+    });
   } catch (err) {
     console.error("Error adding insight:", err);
     res.status(500).json({ error: "Failed to add insight" });
   }
 };
 
-// POST /api/insight/:index/upvote
+// POST /api/insight/:id/upvote
 export const upvote = async (req: Request, res: Response) => {
   try {
-    const { index } = req.params;
-    const parsedIndex = parseInt(index, 10);
-    if (isNaN(parsedIndex)) return res.status(400).json({ error: "Invalid index" });
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ error: "Insight ID required" });
 
-    const tx = await upvoteInsight(parsedIndex);
-    res.json({ message: "Insight upvoted", txHash: tx.transactionHash });
+    // Find the DB record to get the onChainId if available
+    const insight = await upvoteInsight(id); // pass onChainId if you store it
+
+    res.json({ message: "Insight upvoted", insight });
   } catch (err) {
     console.error("Error upvoting insight:", err);
     res.status(500).json({ error: "Failed to upvote insight" });

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.0;
 
 contract CreditChain {
     struct Insight {
         string tip;
+        string body;
         string category;
         string hashedId;
         uint256 timestamp;
@@ -14,28 +14,54 @@ contract CreditChain {
     Insight[] public insights;
     mapping(uint256 => mapping(address => bool)) public hasUpvoted;
 
-    event InsightAdded(string tip, string category, string hashedId, uint256 timestamp);
-    event InsightUpvoted(uint256 index, uint256 newUpvoteCount);
+    // 🧠 Include on-chain ID (index) in the event
+    event InsightAdded(
+        uint256 indexed id,       // new on-chain ID
+        string tip, 
+        string body,
+        string category, 
+        string hashedId, 
+        uint256 timestamp
+    );
 
+    event InsightUpvoted(uint256 indexed id, uint256 newUpvoteCount);
 
-    function addInsight(string memory _tip, string memory _category, string memory _hashedId) public {
-        insights.push(Insight(_tip, _category, _hashedId, block.timestamp, 0));
-        emit InsightAdded(_tip, _category, _hashedId, block.timestamp);
+    // 🚀 Add new insight + emit its on-chain ID
+    function addInsight(
+        string memory _tip, 
+        string memory _body, 
+        string memory _category, 
+        string memory _hashedId
+    ) public {
+        insights.push(
+            Insight(_tip, _body, _category, _hashedId, block.timestamp, 0)
+        );
+
+        uint256 newId = insights.length - 1;
+
+        emit InsightAdded(
+            newId,
+            _tip, 
+            _body, 
+            _category, 
+            _hashedId, 
+            block.timestamp
+        );
     }
 
-    function upvoteInsight(uint256 index) public {
-        require(index < insights.length, "Insight does not exist");
-        require(!hasUpvoted[index][msg.sender], "Already upvoted");
+    // ❤️ Upvote system with protection
+    function upvoteInsight(uint256 id) public {
+        require(id < insights.length, "Insight does not exist");
+        require(!hasUpvoted[id][msg.sender], "Already upvoted");
 
-        insights[index].upvotes += 1;
-        hasUpvoted[index][msg.sender] = true;
+        insights[id].upvotes += 1;
+        hasUpvoted[id][msg.sender] = true;
 
-        emit InsightUpvoted(index, insights[index].upvotes);
-
+        emit InsightUpvoted(id, insights[id].upvotes);
     }
 
+    // 📜 View all insights
     function getInsights() public view returns (Insight[] memory) {
         return insights;
     }
-
 }

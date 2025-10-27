@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "C:\\Users\\danie\\OneDrive\\Desktop\\creditchain\\server\\contracts\\CreditChain.sol": {
-      "lastModificationDate": 1761517990747,
-      "contentHash": "350fe4044a2f3cf471fdf67452b6d694",
+      "lastModificationDate": 1761532274727,
+      "contentHash": "8943063418a231ed5fc578edf98a66fa",
       "sourceName": "contracts/CreditChain.sol",
       "solcConfig": {
         "version": "0.8.28",
