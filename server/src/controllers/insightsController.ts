@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getInsights, addInsight, upvoteInsight } from "../services/insightsServices";
+import { getInsights, addInsight, upvoteInsight, searchByCategory } from "../services/insightsServices";
 
 // GET /api/insights
 export const fetchInsights = async (req: Request, res: Response) => {
@@ -46,5 +46,23 @@ export const upvote = async (req: Request, res: Response) => {
   } catch (err) {
     console.error("Error upvoting insight:", err);
     res.status(500).json({ error: "Failed to upvote insight" });
+  }
+};
+
+
+
+// POST /api/insights/:id/upvote
+export const searchInsights = async (req: Request, res: Response) => {
+  try {
+    const { category } = req.params;
+    if (!category) return res.status(400).json({ error: "Insight ID required" });
+
+    // Find the DB record to get the onChainId if available
+    const insight = await searchByCategory(category); // pass onChainId if you store it
+
+    res.json(insights);
+  } catch (err) {
+    console.error("Error retrieving insights:", err);
+    res.status(500).json({ error: "Failed to retrieve insights" });
   }
 };

@@ -110,3 +110,11 @@ export const upvoteInsight = async (id: string, onChainId?: number) => {
 
   return local;
 };
+
+
+export const searchByCategory = async (category: string): Promise<Insight[]> => {
+    return await prisma.insight.findMany({
+        where: { category: { equals: category, mode: 'insensitive' } },
+        orderBy: { createdAt: 'desc' },
+    });
+};
