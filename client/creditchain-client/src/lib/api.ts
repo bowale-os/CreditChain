@@ -1,5 +1,5 @@
 // src/lib/api.ts   (or any folder you keep your API helpers)
-const BASE_URL = 'http://localhost:5000/api/insights';
+const BASE_URL = 'https://creditchain.vercel.app/api/insights';
 
 import type { Insight } from "../types/insight";
 import type { CreateInsightPayload } from "../types/CreateInsightPayload";
