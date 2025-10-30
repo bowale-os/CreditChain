@@ -1,17 +1,19 @@
-// server.ts (or index.ts)
+// api/index.ts  (for Vercel)
 import express from "express";
 import cors from "cors";
-import insightRoutes from "../src/routes/insights"; // your router
+import insightRoutes from "../src/routes/insights"; // Adjust if needed
 
 const app = express();
 
-// Dynamic CORS for production + dev
+// ✅ Fixed: added commas + normalized domains (no trailing /)
 const allowedOrigins = [
-  "https://creditchain.vercel.app/", 
-  "creditchain-daniel-sobowales-projects.vercel.app/"
-  "creditchain-danielsobowale67-2990-daniel-sobowales-projects.vercel.app/"
+  "https://creditchain.vercel.app",
+  "https://creditchain-daniel-sobowales-projects.vercel.app",
+  "https://creditchain-danielsobowale67-2990-daniel-sobowales-projects.vercel.app",
+  "http://localhost:5173", // Dev
 ];
 
+// Dynamic CORS setup
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -25,37 +27,29 @@ app.use(
   })
 );
 
-// 1. CORS – allow your Next.js app
-app.use(
-  cors({
-    origin: "http://localhost:5173", // Next.js dev server
-    credentials: true,               // if you ever use cookies
-  })
-);
-
-// 2. Parse JSON bodies
+// JSON parser
 app.use(express.json());
 
-// 3. Log every request (optional but super helpful)
-app.use((req, res, next) => {
+// Optional logger
+app.use((req, _, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
-// 4. Mount your insights router
+// Mount routes
 app.use("/api/insights", insightRoutes);
 
-// 5. Health check
-app.get("/", (req, res) => {
+// Health check
+app.get("/", (_, res) => {
   res.json({ message: "Welcome to CreditChain API!" });
 });
 
-// 6. 404 handler (helps debug wrong URLs)
+// 404
 app.use("*", (req, res) => {
   res.status(404).json({ error: "Route not found", path: req.originalUrl });
 });
 
-// 7. Global error handler
+// Error handler
 app.use(
   (
     err: any,
@@ -70,9 +64,6 @@ app.use(
   }
 );
 
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`CORS enabled for: http://localhost:5173`);
-});
+
+// ✅ Instead: export the app for Vercel
+export default app;
