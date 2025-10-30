@@ -1,120 +1,171 @@
 // src/services/insightServices.ts
-import { PrismaClient } from '@prisma/client';
-import Web3 from 'web3';
-import { contract, account } from "../web3";
+import { PrismaClient, Insight } from '@prisma/client';
+import { contract, account } from '../web3';
 
 const prisma = new PrismaClient();
 
-export interface Insight {
-  id?: string;             // local DB id
-  tip: string;
-  body: string | null;
-  category: string;
-  hashedId: string;
-  createdAt: Date;
-  upvotes: number;
-  synced?: boolean;        // whether it has been synced to blockchain
-  onChainIndex?: number;      // index on blockchain
-}
 
-/**
- * Fetch insights from Postgres.
- * Use this as the primary source for your UI for speed.
- */
+/* -------------------------------------------------
+   1. getInsights – fetch from Postgres
+------------------------------------------------- */
 export const getInsights = async (): Promise<Insight[]> => {
-  return await prisma.insight.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  console.log('getInsights() – fetching all insights');
+  try {
+    const insights = await prisma.insight.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    console.log(`getInsights() – SUCCESS – ${insights.length} rows`);
+    return insights;
+  } catch (err: any) {
+    console.error('getInsights() – FAILED:', err.message);
+    throw err;
+  }
 };
 
-/**
- * Add an insight to Postgres, then sync to blockchain.
- */
+/* -------------------------------------------------
+   2. addInsight – DB → blockchain
+------------------------------------------------- */
 export const addInsight = async (
   tip: string,
   body: string | undefined,
   category: string,
   hashedId: string
-) => {
-  // Step 1: Save locally
-  const localInsight = await prisma.insight.create({
-    data: { 
-      tip, 
-      body, 
-      category, 
-      hashedId, 
-      createdAt: new Date(), 
-      upvotes: 0, 
-      synced: false 
-    },
-  });
+): Promise<Insight> => {
 
-  // Step 2: Try to sync to blockchain
+  const safeBody = body?.trim() || '';  // ← removes undefined + extra spaces
+
+  console.log('addInsight() – START');
+  console.log('   payload →', { tip, body, category, hashedId });
+
+  // ---- DB SAVE ----
+  let localInsight: Insight;
   try {
+    localInsight = await prisma.insight.create({
+      data: {
+        tip,
+        body: safeBody,
+        category,
+        hashedId,
+        createdAt: new Date(),
+        upvotes: 0,
+        synced: false,
+      },
+    });
+    console.log('addInsight() – DB SAVE OK → id:', localInsight.id);
+  } catch (err: any) {
+    console.error('addInsight() – DB SAVE FAILED:', err.message);
+    throw err;
+  }
+
+  // ---- BLOCKCHAIN SYNC ----
+  try {
+    console.log('addInsight() – CALLING contract.addInsight()');
+    console.log('   from:', account.address);
+    console.log('   contract:', contract.options.address);
+
     const tx = await (contract.methods.addInsight(
       tip,
-      body,
+      body ?? '',
       category,
       hashedId
     ) as any).send({
       from: account.address,
-      gas: 300000,
+      gas: 500_000,
+      gasPrice: '20', // gwei (string)
     });
 
-    // read emitted event to get blockchain index
-    const onChainId =
-      tx?.events?.InsightAdded?.returnValues?.id !== undefined
-        ? Number(tx.events.InsightAdded.returnValues.id)
-        : null;
+    console.log('addInsight() – TX SUCCESS → hash:', tx.transactionHash);
 
-    // Step 3: Update local DB with sync info
+    // ---- EVENT PARSING ----
+    const event = tx?.events?.InsightAdded;
+    if (!event) {
+      console.warn('addInsight() – NO InsightAdded EVENT');
+      return localInsight;
+    }
+
+    const onChainIndex = Number(event.returnValues.id);
+    console.log('addInsight() – EVENT → onChainIndex:', onChainIndex);
+
+    // ---- MARK SYNCED ----
     const updated = await prisma.insight.update({
       where: { id: localInsight.id },
-      data: { synced: true, onChainId },
+      data: { synced: true, onChainIndex },
     });
-
+    console.log('addInsight() – SYNC COMPLETE → id:', updated.id);
     return updated;
-  } catch (err) {
-    console.error("Blockchain sync failed:", err);
-    return localInsight; // still return local copy
+  } catch (err: any) {
+    console.error('addInsight() – BLOCKCHAIN FAILED');
+    console.error('   message:', err.message);
+    console.error('   code:', err.code);
+    console.error('   reason:', err.reason ?? 'N/A');
+    console.error('   data:', err.data ?? 'N/A');
+    // fallback – return local copy
+    return localInsight;
   }
 };
 
-/**
- * Upvote an insight both in DB and blockchain.
- */
-export const upvoteInsight = async (id: string, onChainId?: number) => {
-  //find onchainid if not provided
-  if (onChainId === undefined) {
-    const existing = await prisma.insight.findUnique({ where: { id } });
-    onChainId = existing?.onChainId;
+/* -------------------------------------------------
+   3. upvoteInsight – DB + blockchain
+------------------------------------------------- */
+export const upvoteInsight = async (
+  id: string,
+  onChainIndex?: number
+): Promise<Insight> => {
+  console.log('upvoteInsight() – START → local id:', id);
+
+  // ---- resolve on‑chain index if missing ----
+  if (onChainIndex === undefined) {
+    const rec = await prisma.insight.findUnique({ where: { id } });
+    onChainIndex = rec?.onChainIndex ?? null;
+    console.log('upvoteInsight() – resolved onChainIndex:', onChainIndex);
   }
 
-  // Step 1: Update local DB
-  const local = await prisma.insight.update({
-    where: { id },
-    data: { upvotes: { increment: 1 } },
-  });
+  // ---- DB upvote ----
+  let local: Insight;
+  try {
+    local = await prisma.insight.update({
+      where: { id },
+      data: { upvotes: { increment: 1 } },
+    });
+    console.log('upvoteInsight() – DB UPVOTE OK → upvotes:', local.upvotes);
+  } catch (err: any) {
+    console.error('upvoteInsight() – DB UPVOTE FAILED:', err.message);
+    throw err;
+  }
 
-  // Step 2: Update on-chain if we have an onChainId
-  if (onChainId !== undefined && onChainId !== null) {
+  // ---- BLOCKCHAIN upvote (if we have index) ----
+  if (onChainIndex !== null && onChainIndex !== undefined) {
     try {
-      await (contract.methods.upvoteInsight(onChainId) as any).send({
+      console.log('upvoteInsight() – CALLING contract.upvoteInsight(', onChainIndex, ')');
+      await (contract.methods.upvoteInsight(onChainIndex) as any).send({
         from: account.address,
-        gas: 200000,
+        gas: 200_000,
       });
-    } catch (err) {
-      console.error("Blockchain upvote failed:", err);
+      console.log('upvoteInsight() – BLOCKCHAIN UPVOTE SUCCESS');
+    } catch (err: any) {
+      console.error('upvoteInsight() – BLOCKCHAIN UPVOTE FAILED:', err.message);
     }
+  } else {
+    console.warn('upvoteInsight() – NO onChainIndex → skipping blockchain call');
   }
 
   return local;
 };
 
-
+/* -------------------------------------------------
+   4. searchByCategory
+------------------------------------------------- */
 export const searchByCategory = async (category: string): Promise<Insight[]> => {
-    return await prisma.insight.findMany({
-        where: { category: { equals: category, mode: 'insensitive' } },
-        orderBy: { createdAt: 'desc' },
+  console.log('searchByCategory() – category:', category);
+  try {
+    const results = await prisma.insight.findMany({
+      where: { category: { equals: category, mode: 'insensitive' } },
+      orderBy: { createdAt: 'desc' },
     });
+    console.log(`searchByCategory() – SUCCESS – ${results.length} rows`);
+    return results;
+  } catch (err: any) {
+    console.error('searchByCategory() – FAILED:', err.message);
+    throw err;
+  }
 };
