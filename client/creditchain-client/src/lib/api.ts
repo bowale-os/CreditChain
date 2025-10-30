@@ -1,9 +1,8 @@
-// src/lib/api.ts   (or any folder you keep your API helpers)
-const BASE_URL = 'https://creditchain.vercel.app/api/insights';
+// src/lib/api.ts
+const BASE_URL = '/api/insights'; // ← RELATIVE! Works everywhere
 
 import type { Insight } from "../types/insight";
 import type { CreateInsightPayload } from "../types/CreateInsightPayload";
-
 
 /* -------------------------------------------------
    Enhanced handleResponse with full logging
@@ -43,7 +42,6 @@ async function handleResponse<T>(res: Response): Promise<T> {
    GET all insights
 ------------------------------------------------- */
 export async function getAllInsights(): Promise<Insight[]> {
-  console.log(`[API] GET ${BASE_URL}`);
   const res = await fetch(`${BASE_URL}`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
@@ -56,23 +54,19 @@ export async function getAllInsights(): Promise<Insight[]> {
    POST new insight
 ------------------------------------------------- */
 export async function postInsight(payload: CreateInsightPayload): Promise<Insight> {
-  console.log(`[API] POST ${BASE_URL}`, payload);
   const res = await fetch(`${BASE_URL}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const data =  await handleResponse<{ message: string; insight: Insight }>(res);
-  console.log('[API] POST response:', data);
-
-  return data.insight; // ← CRITICAL: return the insight, not the wrapper
+  const data = await handleResponse<{ message: string; insight: Insight }>(res);
+  return data.insight;
 }
 
 /* -------------------------------------------------
    Upvote
 ------------------------------------------------- */
 export async function addUpvote(id: string): Promise<{ upvotes: number }> {
-  console.log(`[API] POST ${BASE_URL}/${id}/upvote`);
   const res = await fetch(`${BASE_URL}/${id}/upvote`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -84,8 +78,7 @@ export async function addUpvote(id: string): Promise<{ upvotes: number }> {
    Search by category
 ------------------------------------------------- */
 export async function searchCategory(category: string): Promise<Insight[]> {
-  const url = `${BASE_URL}/category/${category}`;
-  console.log(`[API] GET ${url}`);
+  const url = `${BASE_URL}/category/${encodeURIComponent(category)}`;
   const res = await fetch(url, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
