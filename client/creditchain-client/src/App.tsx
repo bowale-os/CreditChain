@@ -32,7 +32,7 @@ import {
   PointElement,
   LineElement,
 } from 'chart.js';
-import { Bar, Doughnut, Line } from 'react-chartjs-2';
+import { Doughnut, Line } from 'react-chartjs-2';
 import {
   getAllInsights,
   postInsight,
@@ -178,7 +178,7 @@ const InsightForm: React.FC<{
 }> = ({ onSubmit, categories }) => {
   const [tip, setTip] = useState('');
   const [body, setBody] = useState('');
-  const [category, setCategory] = useState(categories[0].id);
+  const [category, setCategory] = useState<CategoryId>('credit-building');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -190,7 +190,7 @@ const InsightForm: React.FC<{
 
     // Simulate API delay
     setTimeout(() => {
-      onSubmit({ tip, body: body || undefined, category, hashedId });
+      onSubmit({ tip, body: body || null, category, hashedId });
       setTip('');
       setBody('');
       setSubmitting(false);
@@ -244,7 +244,7 @@ const InsightForm: React.FC<{
           </label>
           <select
             value={category}
-            onChange={e => setCategory(e.target.value)}
+            onChange={e => setCategory(e.target.value as CategoryId)}
             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           >
@@ -582,8 +582,7 @@ export default function CreditChain() {
 
     // Optimistically update UI
     const optimisticUpvotes = (insights.find(i => i.id === id)?.upvotes ?? 0) + 1;
-    const tempId = `temp-${Date.now()}`; // prevent race conditions
-
+    
     // 1. Update UI immediately
     setInsights(prev =>
       prev
