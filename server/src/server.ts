@@ -5,6 +5,25 @@ import insightRoutes from "../src/routes/insights"; // your router
 
 const app = express();
 
+// Dynamic CORS for production + dev
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://creditchain.vercel.app/", // ← Add your real domain
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
+
 // 1. CORS – allow your Next.js app
 app.use(
   cors({
