@@ -7,8 +7,9 @@ const app = express();
 
 // Dynamic CORS for production + dev
 const allowedOrigins = [
-  "http://localhost:5173",
-  "https://creditchain.vercel.app/", // ← Add your real domain
+  "https://creditchain.vercel.app/", 
+  "creditchain-daniel-sobowales-projects.vercel.app/"
+  "creditchain-danielsobowale67-2990-daniel-sobowales-projects.vercel.app/"
 ];
 
 app.use(
