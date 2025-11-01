@@ -80,11 +80,20 @@ const generateHashedId = (): string => {
   return id;
 };
 
+// ---- Put this at the top, after imports ----
+const sortByScore = (list: Insight[]): Insight[] =>
+  [...list].sort(
+    (a, b) =>
+      calculatePopularityScore(b.upvotes, b.createdAt) -
+      calculatePopularityScore(a.upvotes, a.createdAt)
+  );
+
 const calculatePopularityScore = (upvotes: number, createdAt: Date | string): number => {
+  const safeUpvotes = typeof upvotes === 'number' ? upvotes : 0;
   const date = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
   if (isNaN(date.getTime())) return 0;
   const ageDays = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24);
-  return upvotes / Math.pow(ageDays + 2, 1.5);
+  return safeUpvotes / Math.pow(ageDays + 2, 1.5);
 };
 
 const formatTimeAgo = (createdAt: Date): string => {
@@ -477,16 +486,12 @@ export default function CreditChain() {
 
     getAllInsights()
       .then(data => {
-        const sorted = data
+        const withDates = data
         .map(i => ({
           ...i,
-          createdAt: i.createdAt ? new Date(i.createdAt) : new Date(), // fallback
-        }))
-        .sort((a, b) =>
-          calculatePopularityScore(b.upvotes, b.createdAt) -
-          calculatePopularityScore(a.upvotes, a.createdAt)
-        );
-
+          createdAt: new Date(i.createdAt || Date.now()),
+        }));
+        const sorted = sortByScore(withDates);
         setInsights(sorted);
         setFiltered(sorted);
       })
@@ -533,6 +538,14 @@ export default function CreditChain() {
       .finally(() => setLoading(false));
   }, []);
 
+  // ---- Put this at the top, after imports ----
+const sortByScore = (list: Insight[]): Insight[] =>
+  [...list].sort(
+    (a, b) =>
+      calculatePopularityScore(b.upvotes, b.createdAt) -
+      calculatePopularityScore(a.upvotes, a.createdAt)
+  );
+
   /* -------------------------------------------------
      Compute real category counts
   ------------------------------------------------- */
@@ -576,78 +589,51 @@ export default function CreditChain() {
   /* -------------------------------------------------
      Upvote (API + local)
   ------------------------------------------------- */
-  const handleUpvote = useCallback(
+  // 3. Your handleUpvote (paste exactly as-is)
+const handleUpvote = useCallback(
   async (id: string) => {
     if (upvotedIds.has(id)) return;
 
-    // Optimistically update UI
-    const optimisticUpvotes = (insights.find(i => i.id === id)?.upvotes ?? 0) + 1;
-    
-    // 1. Update UI immediately
-    setInsights(prev =>
-      prev
-        .map(i =>
-          i.id === id
-            ? { ...i, upvotes: optimisticUpvotes }
-            : i
-        )
-        .sort(
-          (a, b) =>
-            calculatePopularityScore(b.upvotes, b.createdAt) -
-            calculatePopularityScore(a.upvotes, a.createdAt)
-        )
-    );
+    setInsights(prev => {
+      const idx = prev.findIndex(i => i.id === id);
+      if (idx === -1) return prev;
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], upvotes: (copy[idx].upvotes || 0) + 1 };
+      return copy;
+    });
 
-    // 2. Track that we're trying
     const newSet = new Set(upvotedIds).add(id);
     setUpvotedIds(newSet);
     localStorage.setItem('creditchain_upvoted', JSON.stringify([...newSet]));
     setPendingUpvote(id);
+
     try {
       const { upvotes } = await addUpvote(id);
-
-      // 3. Sync real server value
-      setInsights(prev =>
-        prev
-          .map(i =>
-            i.id === id
-              ? { ...i, upvotes } // use real value from server
-              : i
-          )
-          .sort(
-            (a, b) =>
-              calculatePopularityScore(b.upvotes, b.createdAt) -
-              calculatePopularityScore(a.upvotes, a.createdAt)
-          )
-      );
-    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      // 4. REVERT on failure
+      setInsights(prev => {
+        const updated = prev.map(i =>
+          i.id === id ? { ...i, upvotes: upvotes ?? 0 } : i
+        );
+        return sortByScore(updated);
+      });
+    } catch (e: any) {
       alert(`Failed to upvote: ${e.message}`);
-      
-      // Remove from upvotedIds
-      const revertedSet = new Set(upvotedIds);
-      revertedSet.delete(id);
-      setUpvotedIds(revertedSet);
-      localStorage.setItem('creditchain_upvoted', JSON.stringify([...revertedSet]));
+      const reverted = new Set(upvotedIds);
+      reverted.delete(id);
+      setUpvotedIds(reverted);
+      localStorage.setItem('creditchain_upvoted', JSON.stringify([...reverted]));
 
-      // Revert UI
-      setInsights(prev =>
-        prev
-          .map(i =>
-            i.id === id
-              ? { ...i, upvotes: optimisticUpvotes - 1 } // go back
-              : i
-          )
-          .sort(
-            (a, b) =>
-              calculatePopularityScore(b.upvotes, b.createdAt) -
-              calculatePopularityScore(a.upvotes, a.createdAt)
-          )
-      );
+      setInsights(prev => {
+        const idx = prev.findIndex(i => i.id === id);
+        if (idx === -1) return prev;
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], upvotes: Math.max(0, (copy[idx].upvotes || 0) - 1) };
+        return sortByScore(copy);
+      });
+    } finally {
+      setPendingUpvote(null);
     }
-    setPendingUpvote(null);
   },
-  [upvotedIds, insights] // add insights to deps
+  [upvotedIds]
 );
 
   /* -------------------------------------------------
@@ -673,7 +659,7 @@ export default function CreditChain() {
         );
       });
       setView('feed');
-    } catch (e: any) { 
+    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       alert(e.message);
     }
   },
