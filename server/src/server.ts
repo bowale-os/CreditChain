@@ -7,10 +7,7 @@ const app = express();
 
 // ✅ Fixed: added commas + normalized domains (no trailing /)
 const allowedOrigins = [
-  "https://creditchain.vercel.app",
-  "https://creditchain-daniel-sobowales-projects.vercel.app",
-  "https://creditchain-danielsobowale67-2990-daniel-sobowales-projects.vercel.app",
-  "http://localhost:5173", // Dev
+  "https://creditchain.vercel.app/"
 ];
 
 // Dynamic CORS setup
