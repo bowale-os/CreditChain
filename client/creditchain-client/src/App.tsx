@@ -1,11 +1,6 @@
 'use client';
 
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-} from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Search,
   TrendingUp,
@@ -19,6 +14,8 @@ import {
   Activity,
   CheckCircle2,
   AlertCircle,
+  X,
+  ExternalLink,
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -54,7 +51,7 @@ ChartJS.register(
 );
 
 /* -------------------------------------------------
-   Dynamic Categories (names fixed, counts computed from insights)
+   Dynamic Categories
 ------------------------------------------------- */
 const CATEGORY_DEFS = [
   { id: 'credit-building', name: 'Credit Building' },
@@ -80,7 +77,6 @@ const generateHashedId = (): string => {
   return id;
 };
 
-// ---- Put this at the top, after imports ----
 const sortByScore = (list: Insight[]): Insight[] =>
   [...list].sort(
     (a, b) =>
@@ -93,7 +89,7 @@ const calculatePopularityScore = (upvotes: number, createdAt: Date | string): nu
   const date = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
   if (isNaN(date.getTime())) return 0;
   const ageDays = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24);
-  return safeUpvotes / Math.pow(ageDays + 2, 1.5);
+  return safeUpvotes / Math.pow(ageDays + 2, 1.8);
 };
 
 const formatTimeAgo = (createdAt: Date): string => {
@@ -107,73 +103,191 @@ const formatTimeAgo = (createdAt: Date): string => {
 };
 
 /* -------------------------------------------------
-   Components
+   Insight Detail Modal
+------------------------------------------------- */
+const InsightModal: React.FC<{
+  insight: Insight;
+  onClose: () => void;
+  onUpvote: (id: string) => void;
+  hasUpvoted: boolean;
+  isPending: boolean;
+}> = ({ insight, onClose, onUpvote, hasUpvoted, isPending }) => {
+  const cat = CATEGORY_DEFS.find(c => c.id === insight.category);
+  const score = calculatePopularityScore(insight.upvotes, insight.createdAt);
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-medium">
+              <Tag className="w-3.5 h-3.5" />
+              {cat?.name ?? 'Unknown'}
+            </span>
+            {insight.synced && (
+              <span className="inline-flex items-center gap-1 text-xs text-green-600">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>On-chain</span>
+              </span>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 py-6 space-y-6">
+          {/* Tip */}
+          <h2 className="text-2xl font-bold text-gray-900 leading-tight">
+            {insight.tip}
+          </h2>
+
+          {/* Body */}
+          {insight.body && (
+            <div className="prose prose-sm max-w-none">
+              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                {insight.body}
+              </p>
+            </div>
+          )}
+
+          {/* Metadata */}
+          <div className="flex items-center gap-4 text-sm text-gray-500 pt-4 border-t border-gray-100">
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-4 h-4" />
+              <span>{formatTimeAgo(insight.createdAt)}</span>
+            </div>
+            <span className="text-gray-300">•</span>
+            <span className="font-mono text-xs">
+              {(insight.hashedId || 'anon').slice(0, 16)}...
+            </span>
+            <span className="text-gray-300">•</span>
+            <span className="text-xs">Score: {score.toFixed(2)}</span>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              onClick={() => onUpvote(insight.id)}
+              disabled={hasUpvoted || isPending}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                hasUpvoted
+                  ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                  : isPending
+                  ? 'bg-gray-100 text-gray-500 animate-pulse'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <ChevronUp className="w-5 h-5" />
+              <span>{hasUpvoted ? 'Upvoted' : 'Upvote'}</span>
+              <span className="text-gray-500">({insight.upvotes})</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* -------------------------------------------------
+   Compact Insight Card (Feed Style)
 ------------------------------------------------- */
 const InsightCard: React.FC<{
   insight: Insight;
   onUpvote: (id: string) => void;
   hasUpvoted: boolean;
-  isPending:boolean
-}> = ({ insight, onUpvote, hasUpvoted, isPending}) => {
+  isPending: boolean;
+  onClick: () => void;
+}> = ({ insight, onUpvote, hasUpvoted, isPending, onClick }) => {
   const cat = CATEGORY_DEFS.find(c => c.id === insight.category);
   const score = calculatePopularityScore(insight.upvotes, insight.createdAt);
 
   return (
-    <article className="group relative p-5 bg-white border border-gray-200 rounded-xl hover:border-blue-200 hover:shadow-sm transition-all">
-      <div className="flex gap-4">
-        {/* Upvote */}
-        <div className="flex flex-col items-center gap-1 pt-1">
+    <article 
+      className="group relative px-4 py-4 bg-white border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+      onClick={onClick}
+    >
+      <div className="flex gap-3">
+        {/* Upvote Button */}
+        <div className="flex flex-col items-center gap-0.5 pt-0.5">
           <button
-              onClick={() => onUpvote(insight.id)}
-              disabled={hasUpvoted || isPending}
-              className={`flex items-center justify-center w-9 h-9 rounded-lg border transition-all ${
-                hasUpvoted
-                  ? 'bg-blue-50 border-blue-200 text-blue-600 cursor-not-allowed'
-                  : isPending
-                  ? 'bg-gray-100 border-gray-300 text-gray-500 cursor-wait animate-pulse'
-                  : 'bg-white border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600'
-              }`}
-            >
-              <ChevronUp className="w-5 h-5" />
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpvote(insight.id);
+            }}
+            disabled={hasUpvoted || isPending}
+            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all ${
+              hasUpvoted
+                ? 'bg-blue-100 text-blue-600'
+                : isPending
+                ? 'bg-gray-100 text-gray-400 animate-pulse'
+                : 'text-gray-400 hover:bg-gray-100 hover:text-blue-600'
+            }`}
+            aria-label={`Upvote. Current: ${insight.upvotes}`}
+          >
+            <ChevronUp className="w-5 h-5" />
           </button>
-          <span className={`text-sm font-semibold ${hasUpvoted ? 'text-blue-600' : 'text-gray-700'}`}>
+          <span className={`text-xs font-semibold ${hasUpvoted ? 'text-blue-600' : 'text-gray-600'}`}>
             {insight.upvotes}
           </span>
         </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
-              <Tag className="w-3 h-3" />
+          {/* Header */}
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-xs font-medium">
               {cat?.name ?? 'Unknown'}
             </span>
-            <span className="text-xs text-gray-500 flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {insight.createdAt ? formatTimeAgo(insight.createdAt) : 'just now'}
+            <span className="text-xs text-gray-500">•</span>
+            <span className="text-xs text-gray-500">
+              {formatTimeAgo(insight.createdAt)}
             </span>
             {insight.synced && (
-              <span className="inline-flex items-center gap-1 text-xs text-green-600">
-                <CheckCircle2 className="w-3 h-3" />
-                <span className="hidden sm:inline">Synced</span>
-              </span>
+              <>
+                <span className="text-xs text-gray-300">•</span>
+                <CheckCircle2 className="w-3 h-3 text-green-600" />
+              </>
             )}
           </div>
 
-          <h3 className="text-base font-semibold text-gray-900 mb-2 leading-snug">
+          {/* Tip */}
+          <h3 className="text-[15px] font-semibold text-gray-900 mb-1 leading-snug group-hover:text-blue-600 transition-colors">
             {insight.tip}
           </h3>
 
+          {/* Preview if body exists */}
           {insight.body && (
-            <p className="text-sm text-gray-600 leading-relaxed mb-3">{insight.body}</p>
+            <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+              {insight.body}
+            </p>
           )}
 
-          <div className="flex items-center gap-3 text-xs text-gray-500">
-            <span className="font-mono">
-              {(insight.hashedId || 'anon').slice(0, 12)}...
-            </span>
+          {/* Footer */}
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span className="font-mono">{(insight.hashedId || 'anon').slice(0, 8)}...</span>
             <span className="text-gray-300">•</span>
             <span>Score: {score.toFixed(2)}</span>
+            {insight.body && (
+              <>
+                <span className="text-gray-300">•</span>
+                <span className="text-blue-600 font-medium group-hover:underline flex items-center gap-0.5">
+                  Read more <ExternalLink className="w-3 h-3" />
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -181,6 +295,9 @@ const InsightCard: React.FC<{
   );
 };
 
+/* -------------------------------------------------
+   Other Components (Form, Search, Dashboard)
+------------------------------------------------- */
 const InsightForm: React.FC<{
   onSubmit: (payload: CreateInsightPayload) => void;
   categories: typeof CATEGORY_DEFS;
@@ -197,7 +314,6 @@ const InsightForm: React.FC<{
     setSubmitting(true);
     const hashedId = generateHashedId();
 
-    // Simulate API delay
     setTimeout(() => {
       onSubmit({ tip, body: body || null, category, hashedId });
       setTip('');
@@ -241,7 +357,7 @@ const InsightForm: React.FC<{
             onChange={e => setBody(e.target.value)}
             placeholder="Share your experience..."
             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            rows={3}
+            rows={4}
             maxLength={500}
           />
           <div className="mt-1 text-xs text-gray-500">{body.length}/500</div>
@@ -295,15 +411,15 @@ const SearchBar: React.FC<{
             setQuery(e.target.value);
             onSearch(e.target.value);
           }}
-          placeholder="Search insights by keyword..."
-          className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Search insights..."
+          className="w-full pl-12 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
         />
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
         <button
           onClick={() => onCategory(null)}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+          className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
             selectedCategory === null
               ? 'bg-blue-600 text-white'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -315,7 +431,7 @@ const SearchBar: React.FC<{
           <button
             key={c.id}
             onClick={() => onCategory(c.id)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
               selectedCategory === c.id
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -389,7 +505,6 @@ const Dashboard: React.FC<{
 
   return (
     <div className="space-y-6">
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-5 bg-white border border-gray-200 rounded-xl">
           <div className="flex items-center justify-between mb-2">
@@ -434,7 +549,6 @@ const Dashboard: React.FC<{
         </div>
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="p-6 bg-white border border-gray-200 rounded-xl">
           <div className="flex items-center gap-2 mb-4">
@@ -473,12 +587,10 @@ export default function CreditChain() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingUpvote, setPendingUpvote] = useState<string | null>(null);
+  const [selectedInsight, setSelectedInsight] = useState<Insight | null>(null);
 
   const hashedId = generateHashedId();
 
-  /* -------------------------------------------------
-     Load insights – never blocks the UI
-  ------------------------------------------------- */
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -486,8 +598,7 @@ export default function CreditChain() {
 
     getAllInsights()
       .then(data => {
-        const withDates = data
-        .map(i => ({
+        const withDates = data.map(i => ({
           ...i,
           createdAt: new Date(i.createdAt || Date.now()),
         }));
@@ -497,14 +608,12 @@ export default function CreditChain() {
       })
       .catch(err => {
         console.error('API error → fallback to mock', err);
-        const warning = 'Live data unavailable – showing demo insights';
-        setError(warning);
-
+        
         const mock: Insight[] = [
           {
             id: '1',
             tip: 'Request credit limit increases every 6 months',
-            body: 'Soft-pull increases dropped my utilization from 45% to 12%.',
+            body: 'Most issuers allow soft-pull increases online. This dropped my utilization from 45% to 12% without opening new accounts. Credit score jumped 67 points in 2 months. The key is to do it consistently and track your progress.',
             category: 'credit-building',
             hashedId: 'hashed_abc123',
             createdAt: new Date(Date.now() - 3_600_000),
@@ -515,7 +624,7 @@ export default function CreditChain() {
           {
             id: '2',
             tip: "Become an authorized user on a family member's old card",
-            body: 'Score jumped from 620 to 720 in one cycle.',
+            body: 'Added to my parent\'s 15-year-old card with perfect payment history. Their history instantly reflected on my report. Score went from 620 to 720 in one reporting cycle. Make sure the card has low utilization and no late payments.',
             category: 'credit-building',
             hashedId: 'hashed_def456',
             createdAt: new Date(Date.now() - 7_200_000),
@@ -523,14 +632,42 @@ export default function CreditChain() {
             onChainIndex: 1002,
             synced: true,
           },
+          {
+            id: '3',
+            tip: 'Use the avalanche method for credit card debt',
+            body: 'Pay minimums on all cards, then attack highest APR first. Saved $3,400 in interest over 18 months compared to snowball method. Math doesn\'t lie - tackle the expensive debt first.',
+            category: 'debt-payoff',
+            hashedId: 'hashed_ghi789',
+            createdAt: new Date(Date.now() - 10_800_000),
+            upvotes: 567,
+            onChainIndex: 1003,
+            synced: true,
+          },
+          {
+            id: '4',
+            tip: 'Set up automatic payments 48 hours before due date',
+            body: '',
+            category: 'credit-building',
+            hashedId: 'hashed_jkl012',
+            createdAt: new Date(Date.now() - 14_400_000),
+            upvotes: 423,
+            onChainIndex: 1004,
+            synced: true,
+          },
+          {
+            id: '5',
+            tip: 'Chase 5/24 rule - wait until under 5 new accounts before applying',
+            body: '',
+            category: 'credit-cards',
+            hashedId: 'hashed_mno345',
+            createdAt: new Date(Date.now() - 18_000_000),
+            upvotes: 321,
+            onChainIndex: 1005,
+            synced: false,
+          },
         ];
 
-        const sorted = mock.sort(
-          (a, b) =>
-            calculatePopularityScore(b.upvotes, b.createdAt) -
-            calculatePopularityScore(a.upvotes, a.createdAt)
-        );
-
+        const sorted = sortByScore(mock);
         setInsights(sorted);
         setFiltered(sorted);
         setError(null);
@@ -538,10 +675,6 @@ export default function CreditChain() {
       .finally(() => setLoading(false));
   }, []);
 
-
-  /* -------------------------------------------------
-     Compute real category counts
-  ------------------------------------------------- */
   const categoryStats = useMemo(() => {
     return CATEGORY_DEFS.map(cat => ({
       ...cat,
@@ -549,17 +682,11 @@ export default function CreditChain() {
     }));
   }, [insights]);
 
-  /* -------------------------------------------------
-     Load up-voted IDs from localStorage
-  ------------------------------------------------- */
   useEffect(() => {
     const stored = localStorage.getItem('creditchain_upvoted');
     if (stored) setUpvotedIds(new Set(JSON.parse(stored)));
   }, []);
 
-  /* -------------------------------------------------
-     Client-side filtering
-  ------------------------------------------------- */
   useEffect(() => {
     let list = insights;
 
@@ -579,131 +706,125 @@ export default function CreditChain() {
     setFiltered(list);
   }, [insights, searchQuery, selectedCategory]);
 
-  /* -------------------------------------------------
-     Upvote (API + local)
-  ------------------------------------------------- */
-  // 3. Your handleUpvote (paste exactly as-is)
-const handleUpvote = useCallback(
-  async (id: string) => {
-    if (upvotedIds.has(id)) return;
-
-    setInsights(prev => {
-      const idx = prev.findIndex(i => i.id === id);
-      if (idx === -1) return prev;
-      const copy = [...prev];
-      copy[idx] = { ...copy[idx], upvotes: (copy[idx].upvotes || 0) + 1 };
-      return copy;
-    });
-
-    const newSet = new Set(upvotedIds).add(id);
-    setUpvotedIds(newSet);
-    localStorage.setItem('creditchain_upvoted', JSON.stringify([...newSet]));
-    setPendingUpvote(id);
-
-    try {
-      const { upvotes } = await addUpvote(id);
-      setInsights(prev => {
-        const updated = prev.map(i =>
-          i.id === id ? { ...i, upvotes: upvotes ?? 0 } : i
-        );
-        return sortByScore(updated);
-      });
-    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      alert(`Failed to upvote: ${e.message}`);
-      const reverted = new Set(upvotedIds);
-      reverted.delete(id);
-      setUpvotedIds(reverted);
-      localStorage.setItem('creditchain_upvoted', JSON.stringify([...reverted]));
+  const handleUpvote = useCallback(
+    async (id: string) => {
+      if (upvotedIds.has(id)) return;
 
       setInsights(prev => {
         const idx = prev.findIndex(i => i.id === id);
         if (idx === -1) return prev;
         const copy = [...prev];
-        copy[idx] = { ...copy[idx], upvotes: Math.max(0, (copy[idx].upvotes || 0) - 1) };
-        return sortByScore(copy);
+        copy[idx] = { ...copy[idx], upvotes: (copy[idx].upvotes || 0) + 1 };
+        return copy;
       });
-    } finally {
-      setPendingUpvote(null);
-    }
-  },
-  [upvotedIds]
-);
 
-  /* -------------------------------------------------
-     Submit new insight (API + optimistic UI)
-  ------------------------------------------------- */
+      const newSet = new Set(upvotedIds).add(id);
+      setUpvotedIds(newSet);
+      localStorage.setItem('creditchain_upvoted', JSON.stringify([...newSet]));
+      setPendingUpvote(id);
+
+      try {
+        const { upvotes } = await addUpvote(id);
+        setInsights(prev => {
+          const updated = prev.map(i =>
+            i.id === id ? { ...i, upvotes: upvotes ?? 0 } : i
+          );
+          return sortByScore(updated);
+        });
+      } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+        alert(`Failed to upvote: ${e.message}`);
+        const reverted = new Set(upvotedIds);
+        reverted.delete(id);
+        setUpvotedIds(reverted);
+        localStorage.setItem('creditchain_upvoted', JSON.stringify([...reverted]));
+
+        setInsights(prev => {
+          const idx = prev.findIndex(i => i.id === id);
+          if (idx === -1) return prev;
+          const copy = [...prev];
+          copy[idx] = { ...copy[idx], upvotes: Math.max(0, (copy[idx].upvotes || 0) - 1) };
+          return sortByScore(copy);
+        });
+      } finally {
+        setPendingUpvote(null);
+      }
+    },
+    [upvotedIds]
+  );
+
   const handleSubmit = useCallback(
-  async (payload: CreateInsightPayload) => {
-    try {
-      const created = await postInsight(payload);
-      
-      // Normalize createdAt here!
-      const normalizedInsight: Insight = {
-        ...created,
-        createdAt: new Date(created.createdAt || Date.now()),
-      };
+    async (payload: CreateInsightPayload) => {
+      try {
+        const created = await postInsight(payload);
+        
+        const normalizedInsight: Insight = {
+          ...created,
+          createdAt: new Date(created.createdAt || Date.now()),
+        };
 
-      setInsights(prev => {
-        const updated = [normalizedInsight, ...prev];
-        return updated.sort(
-          (a, b) =>
-            calculatePopularityScore(b.upvotes, b.createdAt) -
-            calculatePopularityScore(a.upvotes, a.createdAt)
-        );
-      });
-      setView('feed');
-    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      alert(e.message);
-    }
-  },
-  []
-);
+        setInsights(prev => {
+          const updated = [normalizedInsight, ...prev];
+          return sortByScore(updated);
+        });
+        setView('feed');
+      } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+        alert(e.message);
+      }
+    },
+    []
+  );
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-lg text-gray-600">Loading insights…</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-red-600">{error}</div>
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="text-lg text-gray-600">Loading insights…</div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Modal */}
+      {selectedInsight && (
+        <InsightModal
+          insight={selectedInsight}
+          onClose={() => setSelectedInsight(null)}
+          onUpvote={handleUpvote}
+          hasUpvoted={upvotedIds.has(selectedInsight.id)}
+          isPending={pendingUpvote === selectedInsight.id}
+        />
+      )}
+
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
-              <Shield className="w-6 h-6 text-white" />
+            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">CreditChain</h1>
-              <p className="text-xs text-gray-500">Anonymous Financial Intelligence</p>
+              <h1 className="text-lg font-bold text-gray-900">CreditChain</h1>
+              <p className="text-xs text-gray-500 hidden sm:block">Anonymous Financial Intelligence</p>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-50 border border-green-200">
-            <CheckCircle2 className="w-4 h-4 text-green-700" />
-            <span className="text-xs font-medium text-green-700">Blockchain Secured</span>
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg bg-green-50 border border-green-200">
+            <CheckCircle2 className="w-3.5 h-3.5 text-green-700" />
+            <span className="text-xs font-medium text-green-700">Blockchain</span>
           </div>
         </div>
       </header>
 
       {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex gap-1">
+      <nav className="bg-white border-b border-gray-200 sticky top-[61px] z-40">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 flex gap-1">
           {(['feed', 'submit', 'dashboard'] as const).map(v => (
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 view === v
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-600 hover:text-gray-900'
@@ -713,8 +834,8 @@ const handleUpvote = useCallback(
                 {v === 'feed' && <TrendingUp className="w-4 h-4" />}
                 {v === 'submit' && <Plus className="w-4 h-4" />}
                 {v === 'dashboard' && <BarChart3 className="w-4 h-4" />}
-                <span>
-                  {v === 'feed' ? 'Feed' : v === 'submit' ? 'Share Insight' : 'Analytics'}
+                <span className="hidden sm:inline">
+                  {v === 'feed' ? 'Feed' : v === 'submit' ? 'Share' : 'Analytics'}
                 </span>
               </div>
             </button>
@@ -723,34 +844,39 @@ const handleUpvote = useCallback(
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        {/* ----- FEED ----- */}
+      <main className="max-w-4xl mx-auto">
+        {/* FEED */}
         {view === 'feed' && (
-          <div className="space-y-6">
-            <SearchBar
-              onSearch={setSearchQuery}
-              onCategory={setSelectedCategory}
-              selectedCategory={selectedCategory}
-              categories={categoryStats}
-            />
-
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {selectedCategory
-                  ? `${CATEGORY_DEFS.find(c => c.id === selectedCategory)?.name ?? 'Unknown'} Insights`
-                  : 'Trending Insights'}
-              </h2>
-              <span className="text-sm text-gray-500">{filtered.length} insights</span>
+          <div>
+            {/* Search/Filter - Sticky */}
+            <div className="sticky top-[109px] z-30 bg-gray-50 border-b border-gray-200 px-4 sm:px-6 py-3">
+              <SearchBar
+                onSearch={setSearchQuery}
+                onCategory={setSelectedCategory}
+                selectedCategory={selectedCategory}
+                categories={categoryStats}
+              />
             </div>
 
+            {/* Feed Header */}
+            <div className="px-4 sm:px-6 py-3 bg-white border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-900">
+                {selectedCategory
+                  ? `${CATEGORY_DEFS.find(c => c.id === selectedCategory)?.name ?? 'Unknown'}`
+                  : 'Trending Insights'}
+              </h2>
+              <span className="text-xs text-gray-500">{filtered.length}</span>
+            </div>
+
+            {/* Feed List */}
             {filtered.length === 0 ? (
-              <div className="py-12 text-center">
+              <div className="py-16 text-center px-4">
                 <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No insights found</h3>
-                <p className="text-gray-600">Try adjusting your search or filters</p>
+                <p className="text-gray-600 text-sm">Try adjusting your search or filters</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="bg-white">
                 {filtered.map(i => (
                   <InsightCard
                     key={i.id}
@@ -758,6 +884,7 @@ const handleUpvote = useCallback(
                     onUpvote={handleUpvote}
                     hasUpvoted={upvotedIds.has(i.id)}
                     isPending={pendingUpvote === i.id}
+                    onClick={() => setSelectedInsight(i)}
                   />
                 ))}
               </div>
@@ -765,14 +892,13 @@ const handleUpvote = useCallback(
           </div>
         )}
 
-        {/* ----- SUBMIT ----- */}
+        {/* SUBMIT */}
         {view === 'submit' && (
-          <div className="max-w-2xl mx-auto">
+          <div className="px-4 sm:px-6 py-8 max-w-2xl mx-auto">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Share Your Insight</h2>
-              <p className="text-gray-600">
-                Help others improve their credit and financial health. All submissions are
-                anonymous and secured on the blockchain.
+              <p className="text-gray-600 text-sm">
+                Help others improve their credit. All submissions are anonymous and blockchain-secured.
               </p>
             </div>
 
@@ -783,9 +909,8 @@ const handleUpvote = useCallback(
                 <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-blue-900">
                   <p className="font-medium mb-1">Your Privacy is Protected</p>
-                  <p className="text-blue-700">
-                    Your identity is protected with a hashed ID:{' '}
-                    <span className="font-mono text-xs">{hashedId}</span>.
+                  <p className="text-blue-700 text-xs">
+                    Your identity: <span className="font-mono">{hashedId}</span>
                   </p>
                 </div>
               </div>
@@ -793,9 +918,9 @@ const handleUpvote = useCallback(
           </div>
         )}
 
-        {/* ----- DASHBOARD ----- */}
+        {/* DASHBOARD */}
         {view === 'dashboard' && (
-          <div>
+          <div className="px-4 sm:px-6 py-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Analytics Dashboard</h2>
             <Dashboard insights={insights} categoryStats={categoryStats} />
           </div>
