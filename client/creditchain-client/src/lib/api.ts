@@ -1,5 +1,5 @@
 // src/lib/api.ts
-const BASE_URL = '/api/insights'; // ← RELATIVE! Works everywhere
+const BASE_URL = 'https://creditchainbackend.vercel.app/api/insights'; // ← RELATIVE! Works everywhere
 
 import type { Insight } from "../types/insight";
 import type { CreateInsightPayload } from "../types/CreateInsightPayload";
