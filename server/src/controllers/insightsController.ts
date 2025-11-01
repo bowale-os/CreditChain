@@ -60,7 +60,7 @@ export const searchInsights = async (req: Request, res: Response) => {
     // Find the DB record to get the onChainId if available
     const insight = await searchByCategory(category); // pass onChainId if you store it
 
-    res.json(insights);
+    res.json(insight);
   } catch (err) {
     console.error("Error retrieving insights:", err);
     res.status(500).json({ error: "Failed to retrieve insights" });

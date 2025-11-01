@@ -109,12 +109,12 @@ export const addInsight = async (
 ------------------------------------------------- */
 export const upvoteInsight = async (
   id: string,
-  onChainIndex?: number
+  onChainIndex?: number | null
 ): Promise<Insight> => {
   console.log('upvoteInsight() – START → local id:', id);
 
   // ---- resolve on‑chain index if missing ----
-  if (onChainIndex === undefined) {
+  if (onChainIndex === null) {
     const rec = await prisma.insight.findUnique({ where: { id } });
     onChainIndex = rec?.onChainIndex ?? null;
     console.log('upvoteInsight() – resolved onChainIndex:', onChainIndex);

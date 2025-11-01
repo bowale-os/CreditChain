@@ -16,6 +16,6 @@ model Insight {
     hashedId     String    // Matches contract hashedId
     createdAt    DateTime  @default(now())
     upvotes      Int       @default(0)
-    onChainIndex BigInt?      // Index of the insight on-chain
+    onChainIndex Int?      // Index of the insight on-chain
     synced       Boolean   @default(false)
 }

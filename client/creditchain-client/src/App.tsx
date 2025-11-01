@@ -620,7 +620,7 @@ export default function CreditChain() {
               calculatePopularityScore(a.upvotes, a.createdAt)
           )
       );
-    } catch (e: any) {
+    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       // 4. REVERT on failure
       alert(`Failed to upvote: ${e.message}`);
       
@@ -673,7 +673,7 @@ export default function CreditChain() {
         );
       });
       setView('feed');
-    } catch (e: any) {
+    } catch (e: any) { 
       alert(e.message);
     }
   },

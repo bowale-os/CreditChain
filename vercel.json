@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "client/creditchain-client/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" } 
+    },
+    {
+      "src": "server/src/server.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "server/src/index.ts" },
+    { "src": "/(.*)", "dest": "client/dist/$1" }
+  ]
+}
+
