@@ -1,35 +1,41 @@
 // api/index.ts  (for Vercel)
 import express from "express";
-import cors from "cors";
+import cors, { CorsOptions } from 'cors';
 import insightRoutes from "../src/routes/insights"; // Adjust if needed
 
 const app = express();
 
 // ✅ Fixed: added commas + normalized domains (no trailing /)
-const frontend = [
+const allowedOrigins = [
   "https://creditchain.vercel.app"
 ];
 
-// Dynamic CORS setup
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl)
-      if (!origin) return callback(null, true);
+// CORS configuration with proper types
+const corsOptions: CorsOptions = {
+  origin: (
+    origin: string | undefined,
+    callback: (err: Error | null, allow?: boolean) => void
+  ) => {
+    // Allow requests with no origin (like Postman, mobile apps, server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
 
-      // Check if the incoming origin is in the allowed list
-      if (frontend.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true,
-  })
-);
+// Dynamic CORS setup
+app.use(cors(corsOptions));
 
 // JSON parser
 app.use(express.json());
+
+// Handle preflight
+app.options('*', cors(corsOptions));
 
 // Optional logger
 app.use((req, _, next) => {
