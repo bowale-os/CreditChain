@@ -538,13 +538,6 @@ export default function CreditChain() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ---- Put this at the top, after imports ----
-const sortByScore = (list: Insight[]): Insight[] =>
-  [...list].sort(
-    (a, b) =>
-      calculatePopularityScore(b.upvotes, b.createdAt) -
-      calculatePopularityScore(a.upvotes, a.createdAt)
-  );
 
   /* -------------------------------------------------
      Compute real category counts
@@ -615,7 +608,7 @@ const handleUpvote = useCallback(
         );
         return sortByScore(updated);
       });
-    } catch (e: any) {
+    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       alert(`Failed to upvote: ${e.message}`);
       const reverted = new Set(upvotedIds);
       reverted.delete(id);
