@@ -6,18 +6,22 @@ import insightRoutes from "../src/routes/insights"; // Adjust if needed
 const app = express();
 
 // ✅ Fixed: added commas + normalized domains (no trailing /)
-const allowedOrigins = [
-  "https://creditchain.vercel.app/"
+const frontend = [
+  "https://creditchain.vercel.app"
 ];
 
 // Dynamic CORS setup
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+
+      // Check if the incoming origin is in the allowed list
+      if (frontend.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        callback(new Error('Not allowed by CORS'));
       }
     },
     credentials: true,

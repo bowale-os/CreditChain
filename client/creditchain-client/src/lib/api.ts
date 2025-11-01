@@ -18,13 +18,13 @@ async function handleResponse<T>(res: Response): Promise<T> {
     try {
       const json = JSON.parse(text);
       message = json.message ?? message;
-    } catch (e) {
-      console.warn(`[API] Response not JSON:`, text.slice(0, 200));
+    } catch (e) { 
+      console.warn(`[API] Response not JSON:`, e, text.slice(0, 200));
     }
 
     const err = new Error(message);
-    (err as any).status = res.status;
-    (err as any).body = text;
+    (err as any).status = res.status; // eslint-disable-line @typescript-eslint/no-explicit-any
+    (err as any).body = text;// eslint-disable-line @typescript-eslint/no-explicit-any
     throw err;
   }
 
