@@ -11,7 +11,7 @@ No emails, no tracking, just useful financial advice.
 * Anonymous tips with hashed IDs
 * Blockchain-backed insights
 * Community upvotes
-* Smart ranking: `score = upvotes / (age_in_days + 2)^1.5`
+* Smart ranking: `score = upvotes / (age_in_days + 2)^1.8`
 * 8 financial categories
 * Real-time dashboard with charts
 * Responsive UI
