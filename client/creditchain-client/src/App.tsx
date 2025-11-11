@@ -732,7 +732,7 @@ export default function CreditChain() {
           return sortByScore(updated);
         });
       } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-        alert(`Failed to upvote: ${e.message}`);
+        setError(`Failed to upvote: ${e.message}`);
         const reverted = new Set(upvotedIds);
         reverted.delete(id);
         setUpvotedIds(reverted);
@@ -844,6 +844,17 @@ export default function CreditChain() {
       </nav>
 
       {/* Main Content */}
+      {error && (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
+          <p>{error}</p>
+          <button 
+            onClick={() => setError(null)}
+            className="mt-2 px-3 py-1 bg-red-200 hover:bg-red-300 rounded text-sm"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       <main className="max-w-4xl mx-auto">
         {/* FEED */}
         {view === 'feed' && (
