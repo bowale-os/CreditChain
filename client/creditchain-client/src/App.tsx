@@ -724,10 +724,10 @@ export default function CreditChain() {
       setPendingUpvote(id);
 
       try {
-        const { upvotes } = await addUpvote(id);
+        const response = await addUpvote(id);
         setInsights(prev => {
           const updated = prev.map(i =>
-            i.id === id ? { ...i, upvotes: upvotes ?? 0 } : i
+            i.id === id ? { ...i, upvotes: response.upvotes } : i
           );
           return sortByScore(updated);
         });
