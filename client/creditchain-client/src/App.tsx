@@ -710,12 +710,14 @@ export default function CreditChain() {
     async (id: string) => {
       if (upvotedIds.has(id)) return;
 
+      // Optimistically update the UI immediately
       setInsights(prev => {
-        const idx = prev.findIndex(i => i.id === id);
-        if (idx === -1) return prev;
-        const copy = [...prev];
-        copy[idx] = { ...copy[idx], upvotes: (copy[idx].upvotes || 0) + 1 };
-        return copy;
+        const updated = prev.map(insight =>
+          insight.id === id 
+            ? { ...insight, upvotes: (insight.upvotes || 0) + 1 }
+            : insight
+        );
+        return sortByScore(updated);
       });
 
       const newSet = new Set(upvotedIds).add(id);
@@ -725,25 +727,31 @@ export default function CreditChain() {
 
       try {
         const response = await addUpvote(id);
+        // Update with server response to ensure consistency
         setInsights(prev => {
-          const updated = prev.map(i =>
-            i.id === id ? { ...i, upvotes: response.upvotes } : i
+          const updated = prev.map(insight =>
+            insight.id === id 
+              ? { ...insight, upvotes: response.upvotes }
+              : insight
           );
           return sortByScore(updated);
         });
       } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
         setError(`Failed to upvote: ${e.message}`);
+        
+        // Revert optimistic update on error
         const reverted = new Set(upvotedIds);
         reverted.delete(id);
         setUpvotedIds(reverted);
         localStorage.setItem('creditchain_upvoted', JSON.stringify([...reverted]));
 
         setInsights(prev => {
-          const idx = prev.findIndex(i => i.id === id);
-          if (idx === -1) return prev;
-          const copy = [...prev];
-          copy[idx] = { ...copy[idx], upvotes: Math.max(0, (copy[idx].upvotes || 0) - 1) };
-          return sortByScore(copy);
+          const updated = prev.map(insight =>
+            insight.id === id
+              ? { ...insight, upvotes: Math.max(0, (insight.upvotes || 0) - 1) }
+              : insight
+          );
+          return sortByScore(updated);
         });
       } finally {
         setPendingUpvote(null);
